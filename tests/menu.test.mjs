@@ -4,7 +4,6 @@ import { realCtx, fakeSock, fakeMsg, mockFetch, json } from './helpers.mjs';
 import { buildMainMenu, buildIndex, buildCategory, planMenu } from '../lib/menu/index.js';
 import { renderMenu, STYLE_COUNT } from '../lib/menu/styles.js';
 import { SCOPE_NAMES } from '../lib/menu/scopes.js';
-import { getAds } from '../lib/menu/ads.js';
 import { collectSections } from '../lib/menu/visibility.js';
 import { setGlobalSetting } from '../lib/settingsStore.js';
 import { smallCaps, subDigits } from '../lib/design.js';
@@ -18,7 +17,7 @@ test('all six views render in all eight styles, compactly and without buttons', 
   const { ctx } = await realCtx();
   for (const scope of SCOPE_NAMES) {
     for (let style = 1; style <= STYLE_COUNT; style++) {
-      const model = { brand: 'PAXTON MD V2', scope: { title: `${scope} menu`, icon: '•' }, info: [['🌍', 'Mode', 'Public'], ['💬', 'Prefix', '.'], ['⏱️', 'Runtime', '0h 0m 1s'], ['📦', 'Plugins', '1'], ['👑', 'Owner', 'x'], ['👤', 'User', '@1'], ['🕐', 'Time', '1'], ['📅', 'Date', '1']], sections: collectSections(ctx, scope, { isOwner: scope === 'owner' }), prefix: '.', footer: '> f', ads: '📢 ADVERTISEMENT\nPowered by Paxton-Tech' };
+      const model = { brand: 'PAXTON MD V2', scope: { title: `${scope} menu`, icon: '•' }, info: [['🌍', 'Mode', 'Public'], ['💬', 'Prefix', '.'], ['⏱️', 'Runtime', '0h 0m 1s'], ['📦', 'Plugins', '1'], ['👑', 'Owner', 'x'], ['👤', 'User', '@1'], ['🕐', 'Time', '1'], ['📅', 'Date', '1']], sections: collectSections(ctx, scope, { isOwner: scope === 'owner' }), prefix: '.', footer: '> f' };
       const text = renderMenu(style, model);
       assert.ok(text.length > 200 && text.length < 16000, `${scope}/${style}: ${text.length} chars`);
       assert.ok(!/button|undefined|NaN|\[object/i.test(text), `${scope}/${style}`);
@@ -31,7 +30,7 @@ test('every style lists commands one per line, straight under the category headi
   const sections = collectSections(ctx, 'user', { isOwner: false });
   const tools = sections.find((x) => x.key === 'tools');
   assert.ok(tools.items.some((i) => i.name === 'ping') && tools.items.some((i) => i.name === 'runtime'));
-  const model = { brand: 'PAXTON MD V2', scope: { title: 'USER MENU', icon: '👤' }, info: [['🌍', 'Mode', 'Public'], ['💬', 'Prefix', '.'], ['⏱️', 'Runtime', '0h'], ['📦', 'Plugins', '1']], sections, prefix: '.', footer: '> f', ads: null };
+  const model = { brand: 'PAXTON MD V2', scope: { title: 'USER MENU', icon: '👤' }, info: [['🌍', 'Mode', 'Public'], ['💬', 'Prefix', '.'], ['⏱️', 'Runtime', '0h'], ['📦', 'Plugins', '1']], sections, prefix: '.', footer: '> f' };
   for (let style = 1; style <= STYLE_COUNT; style++) {
     const lines = renderMenu(style, model).split('\n');
     if (style === 1) {
@@ -47,33 +46,11 @@ test('every style lists commands one per line, straight under the category headi
   }
 });
 
-test('main menu shows the identity, all info rows and the ads block', async () => {
+test('main menu shows the identity and all info rows, with no advertisement', async () => {
   const { ctx } = await realCtx();
   const { text } = buildMainMenu(ctx, { scope: 'user', senderJid: '27111@s.whatsapp.net', isOwner: false });
-  for (const needle of ['───  ❁ ᴘᴀxᴛᴏɴ ᴍᴅ ᴠ2 ❁ ───', 'ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴘᴀxᴛᴏɴ ᴍᴅ @27111', '❁ ᴘʀᴇғɪx  :', '❁ ᴏᴡɴᴇʀ   :', '❁ ᴍᴏᴅᴇ    :', '❁ ᴘʟᴀᴛғᴏʀᴍ:', '❁ ᴍᴇᴍᴏʀʏ  :', '❁ ᴜᴘᴛɪᴍᴇ  :', '❁ ᴘʟᴜɢɪɴs :', '❁── ', '  ──❁', '📢 ADVERTISEMENT', 'Powered by INCONNU BOY SENSEI', '> ᴘᴀxᴛᴏɴ ᴍᴅ ᴠ2']) assert.ok(text.includes(needle), needle);
+  for (const needle of ['───  ❁ ᴘᴀxᴛᴏɴ ᴍᴅ ᴠ2 ❁ ───', 'ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴘᴀxᴛᴏɴ ᴍᴅ @27111', '❁ ᴘʀᴇғɪx  :', '❁ ᴏᴡɴᴇʀ   :', '❁ ᴍᴏᴅᴇ    :', '❁ ᴘʟᴀᴛғᴏʀᴍ:', '❁ ᴍᴇᴍᴏʀʏ  :', '❁ ᴜᴘᴛɪᴍᴇ  :', '❁ ᴘʟᴜɢɪɴs :', '❁── ', '  ──❁', '> ᴘᴀxᴛᴏɴ ᴍᴅ ᴠ2']) assert.ok(text.includes(needle), needle);
   assert.ok(text.length < 9000, `user menu should stay reasonable (${text.length})`);
-});
-
-test('ads block is configurable and can be disabled', () => {
-  assert.equal(getAds({ menuAdsEnabled: false }), null);
-  assert.equal(getAds({ menuAdsEnabled: true, menuAdsText: 'Hello   shop' }), '📢 ADVERTISEMENT\nHello shop');
-  assert.equal(getAds({ menuAdsEnabled: true, menuAdsText: '' }).includes('Powered by INCONNU BOY SENSEI'), true);
-});
-
-test('ads tag is configurable and shows above the ad text', async () => {
-  assert.equal(getAds({ menuAdsEnabled: true, menuAdsText: 'Hi', menuAdsTag: '  🛒  SPONSORED ' }), '🛒 SPONSORED\nHi');
-  assert.equal(getAds({ menuAdsEnabled: true, menuAdsText: 'Hi', menuAdsTag: '' }), '📢 ADVERTISEMENT\nHi');
-  const { ctx } = await realCtx();
-  const settings = { ...ctx.getGlobalSettings() }; const saved = []; 
-  const set = (k, v) => { settings[k] = v; saved.push(k); };
-  const adstag = (await import('../commands/bot-settings/adstag.js')).default;
-  const sock = fakeSock();
-  await adstag.execute(sock, fakeMsg('.adstag'), ['🛒', 'SPONSORED'], '.', { getGlobalSettings: () => settings, setGlobalSetting: set });
-  assert.equal(settings.menuAdsTag, '🛒 SPONSORED');
-  await adstag.execute(sock, fakeMsg('.adstag'), ['x'.repeat(60)], '.', { getGlobalSettings: () => settings, setGlobalSetting: set });
-  assert.match(sock.sent.at(-1).content.text, /under 32/);
-  await adstag.execute(sock, fakeMsg('.adstag'), ['reset'], '.', { getGlobalSettings: () => settings, setGlobalSetting: set });
-  assert.equal(settings.menuAdsTag, '');
 });
 
 test('regular users never see owner/dev/sudo/admin commands or strict-owner commands', async () => {
@@ -108,10 +85,10 @@ test('.menu command sends the image with the whole menu as its caption (one mess
   await menu.execute(sock, fakeMsg('.menu', '5511@s.whatsapp.net'), [], '.', ctx);
   assert.equal(sock.sent.length, 1);
   const payload = sock.sent.at(-1).content;
-  assert.ok(payload.image?.url, 'menu image attached by default');
+  assert.ok(Buffer.isBuffer(payload.image) && payload.image.length > 1000, 'menu image attached by default');
   assert.equal(typeof payload.caption, 'string');
-  assert.deepEqual(Object.keys(payload).sort(), ['caption', 'contextInfo', 'image', 'mentions']);
-  assert.equal(payload.contextInfo.externalAdReply.showAdAttribution, true);
+  assert.deepEqual(Object.keys(payload).sort(), ['caption', 'image', 'mentions']);
+  assert.ok(!/ADVERTISEMENT/.test(payload.caption), 'no advertisement');
   const drill = fakeSock(); await menu.execute(drill, fakeMsg('.menu ai'), ['ai'], '.', ctx);
   assert.match(drill.sent[0].content.text, /AI/);
   const unk = fakeSock(); await menu.execute(unk, fakeMsg('.menu zzz'), ['zzz'], '.', ctx);

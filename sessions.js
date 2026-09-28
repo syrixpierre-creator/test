@@ -39,11 +39,13 @@
 //       next boot.
 // ============================================================
 
+import { ENV_FILE_STATUS } from './config/index.js'; // must stay first: reads .env into process.env before anything below reads it
 import { fork } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import * as mongoStore from './lib/mongoStore.js';
+import { explainMissingMongo } from './lib/mongoConfig.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -452,9 +454,14 @@ async function startHttpServer() {
 }
 
 async function boot() {
+    if (ENV_FILE_STATUS === null) log('No .env file found next to sessions.js (copy .env.example to .env to use one) — using only the host\'s environment variables.');
+    else log(`.env loaded (${ENV_FILE_STATUS} variable(s) taken from it; host variables always take priority).`);
     startHttpServer().catch((e) => log('HTTP server failed to start:', e.message));
 
     let mongoIds = null;
+    if (!mongoStore.isEnabled()) {
+        log(`⚠️  MongoDB is OFF (${explainMissingMongo()}). Sessions, credentials and settings are stored on the local disk and WILL BE LOST on every Heroku restart/redeploy. Set the MONGODB_URI config var to fix this.`);
+    }
     if (mongoStore.isEnabled()) {
         log(`MongoDB persistence enabled (SESSION_START_CONCURRENCY=${SESSION_START_CONCURRENCY}).`);
         // Idempotent — mirrors the local registry (if any) into Mongo.

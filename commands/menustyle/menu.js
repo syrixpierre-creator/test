@@ -8,7 +8,7 @@ import { config } from '../../config/index.js';
 import { isSenderAdmin, getGroupMetadata } from '../../lib/groupHelper.js';
 import { planMenu, buildMainMenu, buildIndex, buildCategory, resolveCategory } from '../../lib/menu/index.js';
 import { SCOPE_NAMES } from '../../lib/menu/scopes.js';
-import { getAdsCard } from '../../lib/menu/ads.js';
+import { getMenuImage } from '../../lib/menuImage.js';
 import { reply } from '../../lib/helpers/reply.js';
 import { logger } from '../../lib/utils/logger.js';
 
@@ -49,19 +49,21 @@ export default {
       const { scope } = planMenu(ctx, { requested: word === 'all' ? 'owner' : word, isOwner: isOwnerOrSudo, isAdmin, inGroup });
       const { text, header } = buildMainMenu(ctx, { scope, senderJid, groupName, groupJid: inGroup ? chatId : null, isOwner });
 
-      const card = getAdsCard(ctx.getGlobalSettings());
       // Image ON by default (only an explicit `.setmenuimage off` disables
       // it); the whole menu is the caption so it reads as one message.
       if (ctx.getGlobalSettings().menuImage !== false) {
         try {
-          if (text.length <= 3800) {
-            await sock.sendMessage(chatId, { image: { url: config.menu.imageUrl }, caption: text, ...mention, ...(card ? { contextInfo: card } : {}) }, { quoted: msg });
-            return;
+          const image = await getMenuImage();
+          if (image) {
+            if (text.length <= 3800) {
+              await sock.sendMessage(chatId, { image, caption: text, ...mention }, { quoted: msg });
+              return;
+            }
+            await sock.sendMessage(chatId, { image, caption: header, ...mention }, { quoted: msg });
           }
-          await sock.sendMessage(chatId, { image: { url: config.menu.imageUrl }, caption: header, ...mention }, { quoted: msg });
-        } catch (err) { logger.warn('menu', `menu image skipped: ${safeErrorMessage(err)}`); }
+        } catch (err) { logger.error('menu', `menu image not sent: ${safeErrorMessage(err)}`); }
       }
-      await sock.sendMessage(chatId, { text, ...mention, ...(card ? { contextInfo: card } : {}) }, { quoted: msg });
+      await sock.sendMessage(chatId, { text, ...mention }, { quoted: msg });
     } finally {
       sock.sendPresenceUpdate('paused', chatId).catch(() => {});
     }

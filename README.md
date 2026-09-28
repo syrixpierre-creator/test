@@ -66,12 +66,9 @@ Everything is configured through environment variables (a local `.env` file is r
 | `MAX_SESSIONS` | Cap on concurrent paired sessions (`sessions.js`) | `25` |
 | `BOT_NAME`, `BOT_PREFIX`, `OWNER_NAME` | Identity | `QUEEN AKUMA V4`, `.`, `INCONNU BOY SENSEI` |
 | `PORT` | Health/status web server | `3000` |
-| `MENU_ADS_ENABLED`, `MENU_ADS_TEXT` | Default for the menu ad block | `true`, `Powered by INCONNU BOY SENSEI` |
 | `MENU_IMAGE_URL` | Header image when `.setmenuimage on` | built-in |
 | `BOT_FORWARDED_TAG` | Cosmetic "Forwarded many times" label on `.ping` `.runtime` `.alive` `.botinfo` `.version` `.stats` `.sysinfo` `.botcore` (`off` hides it) | `on` |
 | `BOT_NOTICE_LINE` | Optional plain-text line above `.ping`/`.runtime` | *(none)* |
-| `MENU_ADS_BADGE`, `MENU_ADS_URL` | WhatsApp "Ad" badge on the menu (`.adstag badge on\|off`) and the link it opens | `true`, repo URL |
-| `MENU_ADS_TAG` | Label shown above the menu ad (`.adstag` changes it in chat) | `📢 ADVERTISEMENT` |
 | `MAX_AUDIO_MB`, `MAX_AUDIO_MINUTES`, `MAX_MEDIA_MB`, `MAX_UPLOAD_MB` | Size limits | `40`, `20`, `50`, `15` |
 | `DEV_NUMBERS` | Digits-only numbers allowed to use the `$` dev shortcut | *(empty)* |
 | `ENABLE_EVAL` | Enables `.eval` (arbitrary code — owner only) | `false` |

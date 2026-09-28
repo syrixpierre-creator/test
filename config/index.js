@@ -18,6 +18,7 @@ export const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)
 export function loadEnvFile(file) {
   let raw;
   try { raw = fs.readFileSync(file, 'utf8'); } catch { return 0; }
+  raw = raw.replace(/^\uFEFF/, ''); // BOM added by some Windows editors would hide the first variable
   let count = 0;
   for (const line of raw.split(/\r?\n/)) {
     const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
@@ -29,7 +30,10 @@ export function loadEnvFile(file) {
   }
   return count;
 }
-loadEnvFile(path.join(ROOT_DIR, '.env'));
+export const ENV_FILE = path.join(ROOT_DIR, '.env');
+// null = no .env file at all; otherwise how many variables it provided
+// (variables already set by the host, e.g. Heroku Config Vars, win and are not counted).
+export const ENV_FILE_STATUS = fs.existsSync(ENV_FILE) ? loadEnvFile(ENV_FILE) : null;
 
 const str = (name, def = '') => {
   const v = process.env[name];
@@ -89,12 +93,7 @@ export const config = {
   },
 
   menu: {
-    get imageUrl() { return str('MENU_IMAGE_URL', 'https://files.catbox.moe/byjwa1.jpg'); },
-    get adsEnabled() { return bool('MENU_ADS_ENABLED', true); },
-    get adsText() { return str('MENU_ADS_TEXT', 'Powered by INCONNU BOY SENSEI'); },
-    get adsTag() { return str('MENU_ADS_TAG', '📢 ADVERTISEMENT'); },
-    get adsBadge() { return bool('MENU_ADS_BADGE', true); },
-    get adsUrl() { return str('MENU_ADS_URL', config.repoUrl); }
+    get imageUrl() { return str('MENU_IMAGE_URL', 'https://files.catbox.moe/byjwa1.jpg'); }
   },
 
   get platform() {
