@@ -2,11 +2,12 @@ export default {
   name: 'delsession',
   ownerOnly: true,
   strictOwner: true,
-  description: 'Stop and permanently remove an additional session (not the default one). Usage: .delsession <id> — see .sessions for ids.',
+  description: 'Stop and permanently remove a linked session (not the main one). Usage: .delsession (your own) or .delsession <id> (main owner only) — see .sessions.',
   async execute(sock, msg, args, currentPrefix, ctx) {
     const chatId = msg.key.remoteJid;
-    const sessionId = (args[0] || '').trim();
-    if (!sessionId) {
+    // No id = delete the session this chat is talking to (your own bot).
+    const sessionId = (args[0] || '').trim() || ctx.SESSION_LABEL;
+    if (!sessionId || sessionId === 'default') {
       return sock.sendMessage(chatId, { text: `❌ Usage: ${currentPrefix}delsession <id>\nSee ${currentPrefix}sessions for the list of ids.` }, { quoted: msg });
     }
     if (!ctx.IS_MANAGED_SESSION) {

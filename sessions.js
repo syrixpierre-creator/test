@@ -115,6 +115,9 @@ function log(...args) {
 }
 
 function startChildProcess(id, { pairPhone } = {}) {
+    // Req #16/#78 — never two processes (= two sockets) for one session.
+    const already = runtime.get(id);
+    if (already?.child && already.status !== 'stopped') return already.child;
     const cwd = sessionDir(id);
     if (id !== 'default' && !fs.existsSync(cwd)) fs.mkdirSync(cwd, { recursive: true });
 
@@ -226,24 +229,38 @@ function handleChildMessage(id, msg) {
             break;
         }
         case 'sessions-list': {
-            const list = Array.from(runtime.entries()).map(([sid, e]) => ({
-                id: sid, status: e.status, phone: e.phone || null, ownerNumber: e.ownerNumber || null, isDefault: !!e.isDefault, requestedBy: e.requestedBy || null
-            }));
+            // Isolation (req #6/#30): only the main (default) session may see
+            // every session; any other session's owner only sees their own.
+            const isMain = id === 'default';
+            const list = Array.from(runtime.entries())
+                .filter(([sid]) => isMain || sid === id)
+                .map(([sid, e]) => ({
+                    id: sid, status: e.status, phone: e.phone || null, ownerNumber: e.ownerNumber || null, isDefault: !!e.isDefault, requestedBy: e.requestedBy || null
+                }));
             entry?.child?.send({ reqId: msg.reqId, ok: true, sessions: list });
             break;
         }
         case 'delsession': {
-            const targetId = msg.sessionId;
-            if (!targetId || targetId === 'default') {
-                entry?.child?.send({ reqId: msg.reqId, ok: false, error: 'Cannot remove the default session this way.' });
+            const targetId = msg.sessionId || id; // no id given = your own session
+            if (targetId === 'default') {
+                entry?.child?.send({ reqId: msg.reqId, ok: false, error: 'The main session cannot be removed this way.' });
+                break;
+            }
+            // A linked user may only delete their OWN session; only the main
+            // session's owner can delete someone else's.
+            if (id !== 'default' && targetId !== id) {
+                entry?.child?.send({ reqId: msg.reqId, ok: false, error: 'You can only delete your own session.' });
                 break;
             }
             if (!runtime.has(targetId)) {
                 entry?.child?.send({ reqId: msg.reqId, ok: false, error: `No session "${targetId}".` });
                 break;
             }
-            removeSession(targetId);
             entry?.child?.send({ reqId: msg.reqId, ok: true, removed: targetId });
+            // Deleting yourself kills the process that must deliver the
+            // confirmation — give it a moment to send it first.
+            if (targetId === id) setTimeout(() => removeSession(targetId), 2500);
+            else removeSession(targetId);
             break;
         }
     }
@@ -437,32 +454,34 @@ async function startHttpServer() {
 async function boot() {
     startHttpServer().catch((e) => log('HTTP server failed to start:', e.message));
 
+    let mongoIds = null;
     if (mongoStore.isEnabled()) {
         log(`MongoDB persistence enabled (SESSION_START_CONCURRENCY=${SESSION_START_CONCURRENCY}).`);
-        // Idempotent — safe to run on every boot; never deletes the JSON
-        // registry, just mirrors it into Mongo (req #11/#55).
-        mongoStore.migrateJsonRegistry(REGISTRY_FILE).catch((e) => log('migration skipped:', e.message));
+        // Idempotent — mirrors the local registry (if any) into Mongo.
+        await mongoStore.migrateJsonRegistry(REGISTRY_FILE).catch((e) => log('migration skipped:', e.message));
+        // Heroku wipes the local disk on every restart/redeploy, so the
+        // list of sessions to resume MUST come from MongoDB. Retry a few
+        // times in case Mongo is briefly unreachable at boot.
+        for (let attempt = 1; attempt <= 4 && mongoIds === null; attempt++) {
+            mongoIds = await mongoStore.listResumableSessionIds();
+            if (mongoIds === null) { log(`MongoDB not ready (attempt ${attempt}/4) — retrying...`); await new Promise((r) => setTimeout(r, 3000)); }
+        }
+        if (mongoIds === null) log('MongoDB unreachable at boot — falling back to the local registry for this run.');
     }
 
-    // Only auto-start "default" for an existing install (upgrade path) —
-    // a brand-new deployment has nothing to auto-start and no SESSION_ID
-    // to wait on; it just serves the pairing page above and waits for a
-    // phone number.
-    if (hasExistingDefaultSession()) {
-        log('Existing session found at repo root — starting "default"...');
-        enqueueStart(() => startChildProcess('default'));
-    } else {
-        log('No existing session and no SESSION_ID set — open this deployment\'s URL to pair the first number.');
-    }
-
+    const ids = new Set(mongoIds || []);
     const reg = loadRegistry();
-    const extraIds = Object.keys(reg.sessions || {});
-    if (extraIds.length) {
-        log(`Resuming ${extraIds.length} saved session(s) — ${SESSION_START_CONCURRENCY} at a time: ${extraIds.join(', ')}`);
-        // Req #25/#26 — bounded concurrency instead of a fixed serial
-        // stagger, so this scales sanely whether it's 3 sessions or 100.
-        extraIds.forEach((id) => enqueueStart(() => startChildProcess(id)));
+    Object.keys(reg.sessions || {}).forEach((id) => ids.add(id));
+    if (hasExistingDefaultSession()) ids.add('default');
+
+    if (!ids.size) {
+        log('No saved session — open this deployment\'s URL (or send .pair on WhatsApp) to link the first number.');
+        return;
     }
+    const list = Array.from(ids);
+    log(`Resuming ${list.length} saved session(s) — ${SESSION_START_CONCURRENCY} at a time: ${list.join(', ')}`);
+    // Req #25/#26 — bounded concurrency, scales the same for 3 or 100.
+    list.forEach((id) => enqueueStart(() => startChildProcess(id)));
 }
 
 let shuttingDown = false;

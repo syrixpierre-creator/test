@@ -102,13 +102,15 @@ test('commands that need an API key are hidden for users and flagged for the own
   } finally { process.env.WOLVAREX_API_KEY = saved; }
 });
 
-test('.menu command sends a plain text message (no buttons/interactive payloads)', async () => {
+test('.menu command sends the image with the whole menu as its caption (one message, no buttons)', async () => {
   const { ctx } = await realCtx();
   const sock = fakeSock();
   await menu.execute(sock, fakeMsg('.menu', '5511@s.whatsapp.net'), [], '.', ctx);
+  assert.equal(sock.sent.length, 1);
   const payload = sock.sent.at(-1).content;
-  assert.equal(typeof payload.text, 'string');
-  assert.deepEqual(Object.keys(payload).sort(), ['contextInfo', 'mentions', 'text']);
+  assert.ok(payload.image?.url, 'menu image attached by default');
+  assert.equal(typeof payload.caption, 'string');
+  assert.deepEqual(Object.keys(payload).sort(), ['caption', 'contextInfo', 'image', 'mentions']);
   assert.equal(payload.contextInfo.externalAdReply.showAdAttribution, true);
   const drill = fakeSock(); await menu.execute(drill, fakeMsg('.menu ai'), ['ai'], '.', ctx);
   assert.match(drill.sent[0].content.text, /AI/);

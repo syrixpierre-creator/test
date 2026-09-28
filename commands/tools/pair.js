@@ -1,10 +1,21 @@
+// .pair — asks the multi-session host (project root, sessions.js) for a
+// pairing code straight from WhatsApp, no website link needed. With no
+// number it uses the sender's own. Same engine as .linkme.
+import linkme from '../user/linkme.js';
+
 export default {
   name: 'pair',
-  alias: ['pairing'],
-  description: "Get the link to pair a WhatsApp number to this bot. Usage: .pair",
+  alias: ['pairing', 'getcode'],
+  description: 'Get a pairing code for your number, right here in the chat. Usage: .pair [number with country code]',
   async execute(sock, msg, args, currentPrefix, ctx) {
     const chatId = msg.key.remoteJid;
-    const text = `🔗 *Pair Your WhatsApp*\n\nhttps://paxton-md-session-generator.onrender.com/\n\nScan the QR code or use a pairing code to link a number to ${ctx.BOT_NAME}.`;
-    await sock.sendMessage(chatId, { text }, { quoted: msg });
+    if (!ctx.IS_MANAGED_SESSION) {
+      return sock.sendMessage(chatId, { text: '🔗 *Pair Your WhatsApp*\n\nhttps://akumagen2.vercel.app' }, { quoted: msg });
+    }
+    if (!args[0]) {
+      const jid = msg.key.participant || chatId;
+      if (jid.endsWith('@s.whatsapp.net')) args = [jid.split('@')[0].split(':')[0]];
+    }
+    return linkme.execute(sock, msg, args, currentPrefix, ctx);
   }
 };

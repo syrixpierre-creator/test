@@ -49,11 +49,18 @@ export default {
       const { scope } = planMenu(ctx, { requested: word === 'all' ? 'owner' : word, isOwner: isOwnerOrSudo, isAdmin, inGroup });
       const { text, header } = buildMainMenu(ctx, { scope, senderJid, groupName, groupJid: inGroup ? chatId : null, isOwner });
 
-      if (ctx.getGlobalSettings().menuImage) {
-        try { await sock.sendMessage(chatId, { image: { url: config.menu.imageUrl }, caption: header, ...mention }, { quoted: msg }); }
-        catch (err) { logger.warn('menu', `menu image skipped: ${safeErrorMessage(err)}`); }
-      }
       const card = getAdsCard(ctx.getGlobalSettings());
+      // Image ON by default (only an explicit `.setmenuimage off` disables
+      // it); the whole menu is the caption so it reads as one message.
+      if (ctx.getGlobalSettings().menuImage !== false) {
+        try {
+          if (text.length <= 3800) {
+            await sock.sendMessage(chatId, { image: { url: config.menu.imageUrl }, caption: text, ...mention, ...(card ? { contextInfo: card } : {}) }, { quoted: msg });
+            return;
+          }
+          await sock.sendMessage(chatId, { image: { url: config.menu.imageUrl }, caption: header, ...mention }, { quoted: msg });
+        } catch (err) { logger.warn('menu', `menu image skipped: ${safeErrorMessage(err)}`); }
+      }
       await sock.sendMessage(chatId, { text, ...mention, ...(card ? { contextInfo: card } : {}) }, { quoted: msg });
     } finally {
       sock.sendPresenceUpdate('paused', chatId).catch(() => {});
