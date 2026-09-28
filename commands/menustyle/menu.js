@@ -55,11 +55,9 @@ export default {
         try {
           const image = await getMenuImage();
           if (image) {
-            if (text.length <= 3800) {
-              await sock.sendMessage(chatId, { image, caption: text, ...mention }, { quoted: msg });
-              return;
-            }
-            await sock.sendMessage(chatId, { image, caption: header, ...mention }, { quoted: msg });
+            // One message: the image with the WHOLE menu as its caption.
+            await sock.sendMessage(chatId, { image, caption: text, ...mention }, { quoted: msg });
+            return;
           }
         } catch (err) { logger.error('menu', `menu image not sent: ${safeErrorMessage(err)}`); }
       }

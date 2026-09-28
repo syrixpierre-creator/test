@@ -10,6 +10,8 @@
 // instead of relying on ownerOnly:
 //   - a per-sender cooldown (one pairing request per PAIR_COOLDOWN_MS)
 //   - the orchestrator's own MAX_SESSIONS cap as a hard global ceiling
+import { sendCopyCodeMessage } from '../../lib/helpers/copyButton.js';
+
 const PAIR_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes between requests, per sender
 const lastRequestBySender = new Map();
 
@@ -51,8 +53,21 @@ export default {
       return sock.sendMessage(chatId, { text: `❌ Could not start that session: ${result.error || 'unknown error'}` }, { quoted: msg });
     }
 
-    await sock.sendMessage(chatId, {
-      text: `✅ *Your session is ready to link*\n\n📞 Number: +${result.phone}\n🔑 Pairing Code: *${result.pairingCode}*\n⏰ Expires in ~10 minutes\n\n📱 On *that* phone: WhatsApp → Settings → Linked Devices → Link a Device → enter the code above.\n\nOnce linked, it becomes your own bot: you'll automatically be its owner, with your own prefix, your own moderation settings, fully separate from this chat and from every other linked session.`
-    }, { quoted: msg });
+    const steps = `📱 On *that* phone: WhatsApp → Settings → Linked Devices → Link a Device → enter the code above.\n\nOnce linked, it becomes your own bot: you'll automatically be its owner, with your own prefix, your own moderation settings, fully separate from this chat and from every other linked session.`;
+    const head = `✅ *Your session is ready to link*\n\n📞 Number: +${result.phone}\n🔑 Pairing Code: `;
+    const tail = `\n⏰ Expires in ~10 minutes\n\n${steps}`;
+    try {
+      // One tap on the button copies the code.
+      await sendCopyCodeMessage(sock, chatId, msg, {
+        body: `${head}\`${result.pairingCode}\`${tail}`,
+        footer: '> QUEEN AKUMA V4',
+        title: 'WhatsApp pairing',
+        buttonText: '📋 Copy code',
+        code: result.pairingCode
+      });
+    } catch {
+      // Client/account can't show buttons — plain text still carries the code.
+      await sock.sendMessage(chatId, { text: `${head}*${result.pairingCode}*${tail}` }, { quoted: msg });
+    }
   }
 };

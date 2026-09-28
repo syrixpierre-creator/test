@@ -462,26 +462,25 @@ let heartbeatInterval = null, lastActivityTime = Date.now(), connectionAttempts 
 //  sessionReadyAt is a WhatsApp-style timestamp (seconds); anything with
 //  messageTimestamp strictly before it is historical, not live.
 // ============================================================
-let sessionReadyAt = null;
-let backlogGraceTimer = null;
-const BACKLOG_GRACE_MS = Number(process.env.BACKLOG_GRACE_MS) > 0 ? Number(process.env.BACKLOG_GRACE_MS) : 8000;
+let syncOpenedAt = 0;      // WhatsApp-style seconds: when this (re)connection opened
+let syncingUntil = 0;      // ms: end of the post-connect sync window
+const BACKLOG_GRACE_MS = Number(process.env.BACKLOG_GRACE_MS) > 0 ? Number(process.env.BACKLOG_GRACE_MS) : 20000;
 
 function markSessionReady() {
-    // Every (re)connect resets the watermark to "now" — a reconnect after
-    // a network blip can also have queued a few messages meanwhile.
-    sessionReadyAt = Math.floor(Date.now() / 1000);
-    if (backlogGraceTimer) clearTimeout(backlogGraceTimer);
-    // Small extra grace window: messages whose timestamp lands in the same
-    // second as connect, or arrive slightly out of order in the first
-    // batch, still get treated as backlog rather than racily executed.
-    backlogGraceTimer = setTimeout(() => { sessionReadyAt = Math.floor(Date.now() / 1000); }, BACKLOG_GRACE_MS);
+    syncOpenedAt = Math.floor(Date.now() / 1000);
+    syncingUntil = Date.now() + BACKLOG_GRACE_MS;
 }
 
+// Offline-queued messages are flushed by WhatsApp right after login, so the
+// filter only runs inside that short window. Outside it NOTHING is dropped:
+// a permanent timestamp filter would silently ignore live commands whenever
+// the sender's phone clock is behind the server's (the "bot connected but
+// commands do nothing after a reconnect" symptom).
 function isBacklogMessage(msg) {
-    if (!sessionReadyAt) return false; // not connected yet somehow — don't block
+    if (Date.now() >= syncingUntil) return false;
     const ts = Number(msg?.messageTimestamp || 0);
     if (!ts) return false;
-    return ts < sessionReadyAt;
+    return ts < syncOpenedAt;
 }
 
 // Req #22 — cheap in-memory de-dupe guard. Each fresh socket has its own
@@ -1160,7 +1159,7 @@ function cleanSession() {
 }
 
 class MessageStore {
-    constructor() { this.messages = new Map(); this.maxMessages = 100; }
+    constructor() { this.messages = new Map(); this.maxMessages = 500; }
     addMessage(jid, messageId, message) {
         try {
             const key = `${jid}|${messageId}`;
@@ -1317,7 +1316,7 @@ async function startBot(loginMode = 'pair', loginData = null) {
             try { await authenticateWithSessionId(loginData); } catch { const lm = new LoginManager(); const nm = await lm.pairingCodeMode(); lm.close(); loginMode = nm.mode; loginData = nm.phone; }
         }
         const commandLoadPromise = ensurePluginsLoaded();
-        store = new MessageStore();
+        store = store || new MessageStore(); // kept across reconnects: Baileys needs it to resend messages on retry receipts
         ensureSessionDir();
         statusDetector = new StatusDetector();
         // NOTE: autoConnectOnStart is intentionally NOT reset here. This
@@ -1351,12 +1350,20 @@ async function startBot(loginMode = 'pair', loginData = null) {
         wrapSendMessageWithFont(sock, getGlobalSettings);
         wrapSendMessageWithRedaction(sock);
         wrapSendMessageWithContext(sock); // contextInfo (channel chip + repo card) on every outgoing message
-        SOCKET_INSTANCE = sock; connectionAttempts = 0; isWaitingForPairingCode = false;
+        // Never leave the previous socket alive next to the new one: stale
+        // listeners/duplicate sockets are what make a session "weak" after a
+        // reconnect (double handling, replies from a dead connection).
+        const previousSock = SOCKET_INSTANCE;
+        if (previousSock && previousSock !== sock) {
+            try { previousSock.ev.removeAllListeners(); } catch {}
+            try { previousSock.ws?.close(); } catch {}
+        }
+        SOCKET_INSTANCE = sock; isWaitingForPairingCode = false;
 
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect } = update;
             if (connection === 'open') {
-                isConnected = true; markSessionReady(); startHeartbeat(sock); startAutobio(sock);
+                isConnected = true; connectionAttempts = 0; markSessionReady(); startHeartbeat(sock); startAutobio(sock);
                 if (IS_MANAGED_SESSION) process.send({ type: 'session-syncing', sessionLabel: SESSION_LABEL });
                 setTimeout(() => { if (IS_MANAGED_SESSION && isConnected) process.send({ type: 'session-ready', sessionLabel: SESSION_LABEL }); }, BACKLOG_GRACE_MS);
                 await handleSuccessfulConnection(sock, loginMode, loginData);
@@ -1470,8 +1477,16 @@ async function startBot(loginMode = 'pair', loginData = null) {
         });
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
             if (type !== 'notify') return;
-            const msg = messages[0];
-            if (!msg.message) return;
+            // A flush after a reconnect (or a burst) delivers several
+            // messages in ONE event — the old code only looked at the first
+            // and silently dropped the rest.
+            for (const m of messages || []) {
+                try { await processUpsertMessage(m); } catch (e) { logger.error('upsert', e); }
+            }
+        });
+
+        const processUpsertMessage = async (msg) => {
+            if (!msg?.message) return;
 
             // ✅ FIX: Skip bot's own messages
             // if (msg.key.fromMe) return;  // Disabled - was blocking all messages
@@ -1545,7 +1560,7 @@ async function startBot(loginMode = 'pair', loginData = null) {
             
             reportCheckpoint(msg);
             handleIncomingMessage(sock, msg).catch(() => {});
-        });
+        };
         await commandLoadPromise;
         UltraCleanLogger.success(`✅ Loaded ${getTotalCommandCount()} commands`);
         return sock;
