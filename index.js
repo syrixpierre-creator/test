@@ -139,16 +139,32 @@ if (IS_MANAGED_SESSION) {
         resolve(msg);
     });
 }
-function requestOrchestrator(type, payload = {}, timeoutMs = 25000) {
+function requestOrchestrator(type, payload = {}, timeoutMs = 45000) {
     if (!IS_MANAGED_SESSION) {
         return Promise.resolve({ ok: false, error: 'Not running under the multi-session orchestrator. Start the bot with "node sessions.js" instead of "node index.js" to use session management commands.' });
     }
     const reqId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     return new Promise((resolve) => {
+        let settled = false;
         const timer = setTimeout(() => {
-            if (pendingSessionRequests.has(reqId)) { pendingSessionRequests.delete(reqId); resolve({ ok: false, error: 'Orchestrator did not respond in time.' }); }
+            if (pendingSessionRequests.has(reqId)) {
+                pendingSessionRequests.delete(reqId);
+                settled = true;
+                resolve({ ok: false, error: 'Orchestrator did not respond in time.' });
+            }
         }, timeoutMs);
-        pendingSessionRequests.set(reqId, { resolve: (msg) => { clearTimeout(timer); resolve(msg); } });
+        pendingSessionRequests.set(reqId, {
+            resolve: (msg) => {
+                clearTimeout(timer);
+                // Caller already got the generic timeout message and returned —
+                // nothing left to deliver this reply to. Logged so a mismatch
+                // between this timeout and the orchestrator's own (see
+                // handlePairRequest's 50000ms) shows up instead of silently
+                // vanishing, in case one of them gets changed again later.
+                if (settled) { UltraCleanLogger.warning(`Orchestrator reply for "${type}" arrived after this session's own ${timeoutMs}ms wait had already given up.`); return; }
+                resolve(msg);
+            },
+        });
         process.send({ type, reqId, sessionLabel: SESSION_LABEL, ...payload });
     });
 }
@@ -1236,6 +1252,25 @@ async function authenticateWithSessionId(sessionId) {
     } catch (error) { UltraCleanLogger.error('❌ Session authentication failed:', error.message); throw error; }
 }
 
+// True when this session already has linked (registered) credentials, in
+// MongoDB when it is configured (Heroku wipes local files) or in ./session.
+// This is what lets a restarted/redeployed session reconnect by itself
+// instead of asking for a login it has no terminal to answer.
+async function hasStoredCredentials() {
+    try {
+        if (sessionMongo.isEnabled()) {
+            const db = await sessionMongo.getDb();
+            if (db) {
+                const doc = await db.collection('auth_creds').findOne({ sessionId: SESSION_LABEL }, { projection: { data: 1 } });
+                if (doc?.data) return JSON.parse(doc.data).registered === true;
+            }
+        }
+        const local = path.join(SESSION_DIR, 'creds.json');
+        if (fs.existsSync(local)) return JSON.parse(fs.readFileSync(local, 'utf8')).registered === true;
+    } catch (e) { UltraCleanLogger.error(`Stored credentials check failed: ${e.message}`); }
+    return false;
+}
+
 class LoginManager {
     constructor() { this.rl = readline.createInterface({ input: process.stdin, output: process.stdout }); }
     async selectMode() {
@@ -1265,6 +1300,13 @@ class LoginManager {
         if (process.env.PAIR_PHONE) {
             const cleanPhone = String(process.env.PAIR_PHONE).replace(/[^0-9]/g, '');
             if (cleanPhone && cleanPhone.length >= 10) return { mode: 'pair', phone: cleanPhone };
+        }
+        // Resume: linked credentials already exist (Mongo or local) — just
+        // reconnect with them, no pairing and no terminal needed.
+        if (await hasStoredCredentials()) {
+            const digits = String(SESSION_LABEL).replace(/[^0-9]/g, '');
+            console.log(`♻️ Stored credentials found for "${SESSION_LABEL}" — reconnecting without a new pairing.`);
+            return { mode: 'pair', phone: digits.length >= 10 ? digits : null };
         }
         if (!process.stdin.isTTY) {
             console.error('❌ No SESSION_ID (or session_id.txt) is configured and there is no interactive terminal to log in with.\n   Run "node sessions.js" instead (npm start) — it opens a web pairing page, no SESSION_ID needed.');

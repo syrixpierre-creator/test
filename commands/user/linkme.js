@@ -48,7 +48,7 @@ export default {
 
     await sock.sendMessage(chatId, { text: `🔗 Requesting a pairing code for +${phone}...` }, { quoted: msg });
 
-    const result = await ctx.requestOrchestrator('pair', { phone, requestedBy: senderJid });
+    const result = await ctx.requestOrchestrator('pair', { phone, requestedBy: senderJid }, 55000);
     if (!result.ok) {
       return sock.sendMessage(chatId, { text: `❌ Could not start that session: ${result.error || 'unknown error'}` }, { quoted: msg });
     }

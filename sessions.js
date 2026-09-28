@@ -315,7 +315,7 @@ function pairFromHttp(phoneRaw) {
                 httpPairWaiters.delete(phone);
                 reject(new Error('Timed out waiting for a pairing code — try again.'));
             }
-        }, 30000);
+        }, 50000); // > the child's own worst-case retry time (connect + 3 attempts, 3s apart) — see handlePairRequest for why
     });
 }
 
@@ -368,13 +368,20 @@ function handlePairRequest(requesterId, msg) {
     pendingPairs.set(newId, { reqId: msg.reqId, requesterId });
     startChildProcess(newId, { pairPhone: phone });
 
-    // Safety timeout in case the pairing code never arrives (bad number, WA rate-limit, etc).
+    // Safety timeout in case the pairing code never arrives (bad number, WA
+    // rate-limit, etc). Must stay ABOVE the child's own worst case: WebSocket
+    // connect + a 2s initial delay + up to 3 requestPairingCode attempts, 3s
+    // apart, each of which can itself take several seconds over a slow or
+    // rate-limited connection — 30s was cutting it close enough to regularly
+    // lose the race with the requester's own 25s client-side timeout below,
+    // silently dropping a pairing code that arrived just after the requester
+    // had already given up and shown nothing further to the user.
     setTimeout(() => {
         if (pendingPairs.has(newId)) {
             pendingPairs.delete(newId);
             reply({ ok: false, error: 'Timed out waiting for a pairing code — try again.' });
         }
-    }, 30000);
+    }, 50000);
 }
 
 function removeSession(id, { keepDefault = false } = {}) {
