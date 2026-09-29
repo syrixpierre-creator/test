@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QUEEN AKUMA V4 — Pairing</title>
+<link rel="icon" href="data:,">
+<style>
+  :root{--bg:#0b0714;--card:#150f22;--line:#2a2140;--pink:#ff5fb0;--pink2:#a259ff;--ok:#3ddc84;--err:#ff5b6e;--text:#eee6ff;--muted:#9c8fc2}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:
+    radial-gradient(1100px 500px at 20% -10%, #3a1c66 0%, transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, #5c1a4a 0%, transparent 55%),
+    var(--bg);color:var(--text);min-height:100vh;display:flex;justify-content:center;padding:32px 16px}
+  .wrap{width:100%;max-width:480px}
+  .hero{text-align:center;margin-bottom:24px}
+  .hero img{width:96px;height:96px;border-radius:24px;object-fit:cover;border:2px solid var(--pink);box-shadow:0 0 30px -6px var(--pink)}
+  .hero h1{font-size:22px;margin:14px 0 4px;background:linear-gradient(90deg,var(--pink),var(--pink2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{color:var(--muted);font-size:13px;margin:0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:16px}
+  label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+  .row{display:flex;gap:8px}
+  input{flex:1;background:#0e0a1a;border:1px solid var(--line);color:var(--text);padding:13px 14px;border-radius:10px;font-size:15px;outline:none}
+  input:focus{border-color:var(--pink)}
+  button{border:none;border-radius:10px;padding:13px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+  button:disabled{opacity:.5;cursor:default}
+  .btn-primary{background:linear-gradient(90deg,var(--pink),var(--pink2));color:#fff;width:100%}
+  .btn-primary:not(:disabled):hover{filter:brightness(1.1)}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+  .btn-ghost:not(:disabled):hover{border-color:var(--pink)}
+  .hint{font-size:11px;color:var(--muted);margin-top:8px}
+  .msg{font-size:13px;padding:10px 12px;border-radius:10px;margin-top:12px;display:none}
+  .msg.err{display:block;background:#3a0f18;color:var(--err);border:1px solid #5c1a26}
+  .code-box{text-align:center;padding:22px 10px}
+  .code{font-size:34px;letter-spacing:4px;font-weight:700;color:#fff;font-family:monospace;word-break:break-all}
+  .server-tag{display:inline-block;font-size:11px;color:var(--muted);background:#0e0a1a;border:1px solid var(--line);padding:3px 10px;border-radius:999px;margin-bottom:10px}
+  .steps{text-align:left;font-size:13px;color:var(--muted);line-height:1.7;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+  .status{display:flex;align-items:center;gap:8px;font-size:13px;margin-top:14px;color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .dot.starting{background:#f5c542}
+  .dot.pairing{background:#f5c542}
+  .dot.connected{background:var(--ok)}
+  .dot.stopped,.dot.none{background:var(--err)}
+  .session-name{color:#fff;font-weight:600}
+  .actions{display:flex;gap:8px;margin-top:16px}
+  .actions button{flex:1}
+  footer{text-align:center;color:var(--muted);font-size:11px;margin-top:20px}
+  .spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <img src="https://files.catbox.moe/byjwa1.jpg" alt="Queen Akuma V4">
+    <h1>QUEEN AKUMA V4</h1>
+    <p>WhatsApp multi-session pairing</p>
+  </div>
+
+  <div class="card" id="formCard">
+    <label for="phone">Phone number (with country code, no +)</label>
+    <div class="row">
+      <input id="phone" type="tel" placeholder="15551234567" inputmode="numeric" autocomplete="off">
+      <button class="btn-primary" id="goBtn" style="flex:0 0 140px">Get Code</button>
+    </div>
+    <div class="hint">Requests are automatically balanced across two servers.</div>
+    <div class="msg err" id="errBox"></div>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <div class="code-box">
+      <div class="server-tag" id="serverTag">server</div>
+      <div class="code" id="codeText">----</div>
+    </div>
+    <div class="actions">
+      <button class="btn-ghost" id="copyBtn">📋 Copy code</button>
+      <button class="btn-ghost" id="regenBtn">↻ Regenerate</button>
+    </div>
+    <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Checking status…</span></div>
+    <div class="steps">
+      1. Open WhatsApp on the phone you're linking<br>
+      2. Settings → Linked Devices → Link a Device<br>
+      3. Tap "Link with phone number instead"<br>
+      4. Enter the code above
+    </div>
+  </div>
+
+  <footer>Active session: <span class="session-name" id="activeName">none yet</span></footer>
+</div>
+
+<script>
+const SERVERS = [
+  'https://serveur2-67ef94084519.herokuapp.com',
+  'https://sioask1-d43b373bb9fc.herokuapp.com'
+];
+const LS_KEY = 'akuma_pairing_state';
+const RR_KEY = 'akuma_rr_index'; // round-robin pointer, persists across visits
+
+function nextServerIndex(){
+  const i = (parseInt(localStorage.getItem(RR_KEY) || '0', 10)) % SERVERS.length;
+  localStorage.setItem(RR_KEY, String((i + 1) % SERVERS.length));
+  return i;
+}
+function loadState(){ try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch { return null; } }
+function saveState(s){ localStorage.setItem(LS_KEY, JSON.stringify(s)); }
+
+const $ = (id) => document.getElementById(id);
+const phoneInput = $('phone'), goBtn = $('goBtn'), errBox = $('errBox');
+const formCard = $('formCard'), resultCard = $('resultCard');
+const codeText = $('codeText'), serverTag = $('serverTag'), activeName = $('activeName');
+const statusDot = $('statusDot'), statusText = $('statusText');
+let pollTimer = null;
+
+function showError(msg){ errBox.textContent = msg; errBox.style.display = 'block'; }
+function clearError(){ errBox.style.display = 'none'; }
+function setLoading(btn, on, label){ btn.disabled = on; btn.innerHTML = on ? '<span class="spin"></span>' + label : label; }
+
+async function callPair(serverUrl, phone, regenerate){
+  const res = await fetch(serverUrl + '/api/pair', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ phone, regenerate: !!regenerate })
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data || data.ok === false) throw new Error((data && data.error) || ('HTTP ' + res.status));
+  return data;
+}
+
+async function pollStatus(){
+  const s = loadState();
+  if (!s) return;
+  try {
+    const res = await fetch(s.server + '/api/status/' + encodeURIComponent(s.sessionId));
+    const data = await res.json();
+    statusDot.className = 'dot ' + (data.status || 'none');
+    const labels = { starting:'Starting…', pairing:'Waiting for you to enter the code…', connected:'Connected ✅', stopped:'Stopped', none:'Not found', removing:'Removing…' };
+    statusText.textContent = labels[data.status] || data.status;
+    activeName.textContent = s.phone + ' (' + shortServer(s.server) + ')' + (data.status === 'connected' ? ' — connected' : '');
+    if (data.status === 'connected') clearInterval(pollTimer);
+  } catch { statusText.textContent = 'Status check failed (server unreachable).'; }
+}
+
+function shortServer(url){ return url.replace('https://', '').split('.')[0]; }
+
+function renderResult(server, phone, sessionId, pairingCode, alreadyLinked){
+  saveState({ server, phone, sessionId });
+  formCard.style.display = 'none';
+  resultCard.style.display = 'block';
+  serverTag.textContent = shortServer(server);
+  codeText.textContent = alreadyLinked ? '✅ Already linked' : (pairingCode || '----');
+  activeName.textContent = phone + ' (' + shortServer(server) + ')';
+  clearInterval(pollTimer);
+  pollTimer = setInterval(pollStatus, 3000);
+  pollStatus();
+}
+
+goBtn.addEventListener('click', async () => {
+  clearError();
+  const phone = phoneInput.value.replace(/[^0-9]/g, '');
+  if (phone.length < 10) return showError('Enter a valid phone number with country code.');
+  setLoading(goBtn, true, 'Requesting…');
+  const server = SERVERS[nextServerIndex()];
+  try {
+    const data = await callPair(server, phone, false);
+    renderResult(server, phone, data.sessionId, data.pairingCode, data.alreadyLinked);
+  } catch (e) {
+    showError('Could not reach ' + shortServer(server) + ': ' + e.message);
+  } finally {
+    setLoading(goBtn, false, 'Get Code');
+  }
+});
+
+$('copyBtn').addEventListener('click', () => {
+  const text = codeText.textContent;
+  navigator.clipboard?.writeText(text).then(() => {
+    $('copyBtn').textContent = '✅ Copied';
+    setTimeout(() => { $('copyBtn').textContent = '📋 Copy code'; }, 1500);
+  });
+});
+
+$('regenBtn').addEventListener('click', async () => {
+  const s = loadState();
+  if (!s) return;
+  const btn = $('regenBtn');
+  setLoading(btn, true, 'Regenerating…');
+  try {
+    const data = await callPair(s.server, s.phone, true);
+    renderResult(s.server, s.phone, data.sessionId, data.pairingCode, data.alreadyLinked);
+  } catch (e) {
+    showError('Regenerate failed: ' + e.message);
+  } finally {
+    setLoading(btn, false, '↻ Regenerate');
+  }
+});
+
+// Resume an in-progress pairing if the page is reloaded.
+(function init(){
+  const s = loadState();
+  if (s) {
+    formCard.style.display = 'none';
+    resultCard.style.display = 'block';
+    serverTag.textContent = shortServer(s.server);
+    codeText.textContent = '••••';
+    activeName.textContent = s.phone + ' (' + shortServer(s.server) + ')';
+    pollTimer = setInterval(pollStatus, 3000);
+    pollStatus();
+  }
+})();
+</script>
+</body>
+</html>

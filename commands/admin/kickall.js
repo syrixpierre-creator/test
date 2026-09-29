@@ -2,7 +2,7 @@ import { getGroupMetadata, isSenderAdmin, isBotAdmin, replyText } from '../../li
 
 export default {
   name: 'kickall',
-  description: "⚠️ DANGEROUS: removes every non-admin member from the group (admin only). Requires typing the confirm word so it can't fire by accident. Usage: .kickall confirm",
+  description: "⚠️ DANGEROUS: removes every non-admin member from the group in ONE single shot (admin only). Requires typing the confirm word so it can't fire by accident. Usage: .kickall confirm",
   async execute(sock, msg, args) {
     const chatId = msg.key.remoteJid;
     if (!chatId.endsWith('@g.us')) return replyText(sock, msg, '❌ This command only works in groups.');
@@ -10,7 +10,7 @@ export default {
     if (!(await isSenderAdmin(sock, chatId, sender))) return replyText(sock, msg, '❌ Only group admins can use this command.');
     if (!(await isBotAdmin(sock, chatId))) return replyText(sock, msg, '❌ I need to be an admin to do that.');
     if ((args[0] || '').toLowerCase() !== 'confirm') {
-      return replyText(sock, msg, '⚠️ This removes EVERY non-admin member from the group. This cannot be undone.\nType `.kickall confirm` if you\'re sure.');
+      return replyText(sock, msg, "⚠️ This removes EVERY non-admin member from the group in ONE shot (single request, no pauses). This cannot be undone, and WhatsApp may flag the bot's number for a burst removal this size.\nFor a slower, safer removal instead, use `.kickall2 confirm`.\nType `.kickall confirm` if you're sure.");
     }
 
     const metadata = await getGroupMetadata(sock, chatId);
@@ -24,20 +24,12 @@ export default {
 
     if (!targets.length) return replyText(sock, msg, 'ℹ️ No non-admin members to remove.');
 
-    await replyText(sock, msg, `🚨 Removing ${targets.length} member(s)... this may take a moment.`);
-    let removed = 0;
-    // Remove in small batches with a short pause between them — WhatsApp
-    // rate-limits/flags accounts that fire off a huge participant-update
-    // burst all at once, which risks the bot's own number getting banned.
-    const BATCH_SIZE = 5;
-    for (let i = 0; i < targets.length; i += BATCH_SIZE) {
-      const batch = targets.slice(i, i + BATCH_SIZE);
-      try {
-        await sock.groupParticipantsUpdate(chatId, batch, 'remove');
-        removed += batch.length;
-      } catch {}
-      if (i + BATCH_SIZE < targets.length) await new Promise((r) => setTimeout(r, 2000));
+    await replyText(sock, msg, `🚨 Removing ${targets.length} member(s) in one shot...`);
+    try {
+      await sock.groupParticipantsUpdate(chatId, targets, 'remove');
+      await replyText(sock, msg, `✅ Removed ${targets.length} member(s).`);
+    } catch (err) {
+      await replyText(sock, msg, `❌ The one-shot removal failed (${err.message || err}). Try \`.kickall2 confirm\` to remove them one by one instead.`);
     }
-    await replyText(sock, msg, `✅ Removed ${removed}/${targets.length} member(s).`);
   }
 };

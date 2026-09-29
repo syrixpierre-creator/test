@@ -414,6 +414,14 @@ async function startHttpServer() {
     app.use(express.json());
     app.use(express.static(path.join(ROOT_DIR, 'public')));
 
+    app.use((req, res, next) => {
+        res.header('Access-Control-Allow-Origin', '*');
+        res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type');
+        if (req.method === 'OPTIONS') return res.sendStatus(204);
+        next();
+    });
+
     app.get('/health', (_req, res) => {
         const mem = process.memoryUsage();
         const all = Array.from(runtime.values());
@@ -440,6 +448,11 @@ async function startHttpServer() {
     // Request (or resume polling for) a pairing code for a phone number.
     app.post('/api/pair', async (req, res) => {
         try {
+            if (req.body?.regenerate) {
+                const phone = sanitizeId(req.body?.phone || '');
+                const existing = phone && runtime.get(phone);
+                if (existing && existing.status !== 'connected') removeSession(phone);
+            }
             const result = await pairFromHttp(req.body?.phone);
             res.json({ ok: true, ...result });
         } catch (err) {
