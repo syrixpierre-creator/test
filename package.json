@@ -1,6 +1,6 @@
 {
   "name": "queen-akuma-v4",
-  "version": "2.6.1",
+  "version": "4.0.0",
   "description": "QUEEN AKUMA V4 — a self-hosted WhatsApp multi-device bot built on Baileys with 350+ commands: AI, downloads, fun, group moderation, tools, and redesigned text menus.",
   "type": "module",
   "main": "sessions.js",
