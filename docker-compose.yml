@@ -1,31 +1,59 @@
-# docker compose up -d --build
-# Put your secrets in a local .env file (copy .env.example) — it is read by
-# compose and is never baked into the image.
 services:
-  queen-akuma-v4:
-    build: .
-    image: queen-akuma-v4:v4
-    container_name: queen-akuma-v4
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: inconnu-boy-apk-builder:${APP_VERSION:-local}
     restart: unless-stopped
     env_file:
       - .env
     environment:
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: "3000"
+      DATA_DIR: /data
+      ANDROID_HOME: /opt/android-sdk
+      GRADLE_COMMAND: /opt/gradle/bin/gradle
     ports:
-      - "3000:3000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-3000}:3000"
     volumes:
-      - queen-akuma-session:/app/session
-      - queen-akuma-data:/app/data
-    init: true               # signal forwarding even without tini
-    stop_grace_period: 15s   # time for the bot to save state on SIGTERM
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/health || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 45s
+      - ${DATA_PATH:-./data}:/data
+    user: "10001:10001"
+    cap_drop:
+      - ALL
     security_opt:
       - no-new-privileges:true
+    pids_limit: 2048
+    mem_limit: ${APP_MEMORY:-4g}
+    cpus: ${APP_CPUS:-2}
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  caddy:
+    image: caddy:2-alpine
+    profiles:
+      - https
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
-  queen-akuma-session:
-  queen-akuma-data:
+  caddy_data:
+  caddy_config:

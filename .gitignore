@@ -1,9 +1,8 @@
 node_modules/
-.env
-session/
-sessions/
 data/
-temp_sessions/
+.env
+*.keystore
+*.jks
+*.p12
 *.log
-session_id.txt
 .DS_Store

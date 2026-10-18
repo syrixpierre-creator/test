@@ -1,22 +1,27 @@
 services:
   - type: web
-    name: queen-akuma-v4
-    env: node
-    plan: free
-    buildCommand: npm install
-    startCommand: npm start
+    name: inconnu-boy-apk-builder
+    runtime: docker
+    plan: pro
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: false
+    disk:
+      name: inconnu-data
+      mountPath: /data
+      sizeGB: 30
     envVars:
-      - key: BOT_NAME
-        value: QUEEN AKUMA V4
-      - key: PORT
-        value: 3000
-      - key: SESSION_ID
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /data
+      - key: TRUST_PROXY
+        value: "true"
+      - key: WORKER_CONCURRENCY
+        value: "1"
+      - key: PUBLIC_BASE_URL
         sync: false
-        # ^ Paste the QUEENAKUMAV4:... string from the session generator here
-        # in the Render dashboard (Environment tab) — do not commit it to
-        # git. With SESSION_ID set, the bot skips the interactive pairing
-        # menu and logs straight in.
-      - key: WOLVAREX_API_KEY
+      - key: ALLOWED_ORIGINS
         sync: false
-        # ^ set in the Render dashboard; never commit it.
-    healthCheckPath: /health
+      - key: API_KEY
+        sync: false
