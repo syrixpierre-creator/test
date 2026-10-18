@@ -55,3 +55,12 @@ export const validConfig = (overrides = {}) => ({
   inputType: 'html',
   ...overrides
 });
+
+export async function waitFor(predicate, { timeout = 30000, interval = 25 } = {}) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    if (await predicate()) return;
+    if (Date.now() > deadline) throw new Error('waitFor timed out');
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+}

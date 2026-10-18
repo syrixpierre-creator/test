@@ -273,7 +273,7 @@ print_summary() {
   if [ -n "$DOMAIN" ]; then
     address="https://$DOMAIN"
   else
-    address="http://$(hostname -I 2> /dev/null | awk '{ print $1 }'):${HTTP_PORT_VALUE}"
+    address="http://$(hostname -I 2> /dev/null | awk '{ print $1 }' || true):${HTTP_PORT_VALUE}"
   fi
   info ""
   info "INCONNU BOY APK BUILDER is running."

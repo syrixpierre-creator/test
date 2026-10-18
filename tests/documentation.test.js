@@ -34,7 +34,6 @@ test('every file and directory the project promises exists and is not empty', as
     assert.ok((await fs.readdir(path.join(ROOT, directory))).length > 0, `${directory} is empty`);
   }
   assert.equal(await exists('build-worker'), false);
-  assert.equal(await exists('package-lock.json'), false);
   assert.match(await read('README.md'), /package-lock\.json/);
   assert.match(await read('docs/architecture.md'), /build-worker/);
 });

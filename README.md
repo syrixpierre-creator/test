@@ -243,11 +243,15 @@ The script backs up first, preserves `.env`, metadata and artifacts, rebuilds, c
 - Passing automated tests (run twice in a row) for configuration, SSRF and URL probing, ZIP safety, HTML and ZIP ingestion, the icon generator, the build configuration, the Android project writer, the Gradle process runner, APK validation, the build service and runner (with a stubbed Gradle executable), SQLite persistence and retention, the queue, the installer and maintenance scripts (with a stubbed Docker), configuration files, documentation consistency, the examples and, in Chromium against a mock of the API, the whole interface.
 - Repository rules checked by tests: no comments in any source or configuration file, every environment variable and API route and error code documented, documented scripts and links exist.
 
+### First GitHub Actions run (reported by a user, not reproduced here)
+
+A first run on an unrelated GitHub account showed: 188 of 191 unit tests passing (the three failing test names were not in the excerpt), ShellCheck warning SC2034 on `ASSUME_YES` in three scripts, `npm audit` advisories against the first pinned versions of express, multer and sharp, and a failure inside the `android-actions/setup-android` step before any project code ran. Afterwards: `ASSUME_YES` is exported, express, multer and sharp were bumped to 4.22.3, 2.4.0 and 0.35.5 (the versions `npm audit` named as fixes), the Android job uses the SDK already installed on the runner, and tests that depended on running as root or on fixed sleeps were made independent of both. The suite also passes when run as a non-root user here. **None of these fixes has been run on GitHub, and the three original failures are not identified**, so treat the corrected workflow as unverified. The new dependency versions were not installed or tested here: the local tests ran against sharp 0.34.5.
+
 ### What was not verified
 
 - A real Gradle build and APK, installation of the APK on a device, and the on-device appearance of the icon.
 - The real Express server, Zod validation, Multer uploads, Pino logging and rate limiting (syntax checked only).
-- Building the Docker image, running the installer or `docker compose` for real, certificate issuance, every cloud or hosting platform, GitHub Actions runs, `shellcheck`, `npm audit`.
+- Building the Docker image, running the installer or `docker compose` for real, certificate issuance, every cloud or hosting platform, and a passing GitHub Actions run (see below for the one run that was reported).
 - Accessibility measured with dedicated tools.
 
 ## Contributing

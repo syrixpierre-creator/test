@@ -207,3 +207,11 @@ test('the content security policy served with the frontend allows no remote conn
   assert.match(policy, /frame-ancestors 'none'/);
   assert.doesNotMatch(policy, /unsafe-inline|unsafe-eval|https:|http:/);
 });
+
+test('dependencies are pinned exactly and the test script prints a readable failure summary', async () => {
+  const manifest = JSON.parse(await read('package.json'));
+  for (const [name, version] of Object.entries({ ...manifest.dependencies, ...manifest.devDependencies })) {
+    assert.match(version, /^\d+\.\d+\.\d+$/, `${name} is not pinned exactly`);
+  }
+  assert.match(manifest.scripts.test, /--test-reporter=spec/);
+});

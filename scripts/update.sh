@@ -13,7 +13,7 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --version) TARGET="${2:-}"; shift 2 ;;
     --no-backup) SKIP_BACKUP=1; shift ;;
-    --yes) ASSUME_YES=1; shift ;;
+    --yes) export ASSUME_YES=1; shift ;;
     --help|-h) info "Usage: sudo bash update.sh [--version <tag-or-branch>] [--no-backup] [--yes]"; exit 0 ;;
     *) fail "Unknown option: $1" ;;
   esac

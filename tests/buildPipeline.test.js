@@ -14,6 +14,7 @@ import {
   sampleIcon,
   sampleSiteZip,
   validConfig,
+  waitFor,
   writeExecutable
 } from './helpers/fixtures.js';
 
@@ -207,15 +208,16 @@ test('runner marks cancelled and timed out builds correctly', async () => {
   const cancelled = await service.submit({ ownerHash: owner, rawConfig: validConfig(), source: sampleHtml(), icon: null });
   const cancelController = new AbortController();
   const cancelRun = runner(cancelled.id, cancelController.signal);
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-  assert.equal(database.getBuild(cancelled.id).state, 'compiling');
+  await waitFor(() => database.getBuild(cancelled.id).state === 'compiling');
+  await waitFor(() => database.getLogs(cancelled.id).some((log) => log.line === 'working'));
   cancelController.abort(new DOMException('Build cancelled', 'AbortError'));
   await cancelRun;
   assert.equal(database.getBuild(cancelled.id).state, 'cancelled');
   const timedOut = await service.submit({ ownerHash: owner, rawConfig: validConfig(), source: sampleHtml(), icon: null });
   const timeoutController = new AbortController();
   const timeoutRun = runner(timedOut.id, timeoutController.signal);
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+  await waitFor(() => database.getBuild(timedOut.id).state === 'compiling');
+  await waitFor(() => database.getLogs(timedOut.id).some((log) => log.line === 'working'));
   timeoutController.abort(new DOMException('Build timed out', 'TimeoutError'));
   await timeoutRun;
   assert.equal(database.getBuild(timedOut.id).state, 'failed');

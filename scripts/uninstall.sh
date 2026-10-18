@@ -13,7 +13,7 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --purge) PURGE=1; shift ;;
     --confirm) CONFIRMATION="${2:-}"; shift 2 ;;
-    --yes) ASSUME_YES=1; shift ;;
+    --yes) export ASSUME_YES=1; shift ;;
     --help|-h)
       info "Usage: sudo bash uninstall.sh [--yes] [--purge --confirm DELETE]"
       info "Without --purge the containers and images are removed; configuration, metadata and artifacts stay in $INSTALL_DIR."

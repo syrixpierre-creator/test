@@ -32,4 +32,4 @@ Everything a user sends is untrusted: configuration, files, ZIP archives, images
 
 ## Deployment recommendations
 
-Use HTTPS only (`NODE_ENV=production` enforces an https base URL), keep `.env` at mode 600, set `API_KEY` for private use, set `TRUST_PROXY=true` only behind a proxy you control, restrict the firewall to ports 22, 80 and 443, copy backups off the server, and update regularly with `scripts/update.sh`. Run `npm audit` on a networked machine; it could not be run while this project was written.
+Use HTTPS only (`NODE_ENV=production` enforces an https base URL), keep `.env` at mode 600, set `API_KEY` for private use, set `TRUST_PROXY=true` only behind a proxy you control, restrict the firewall to ports 22, 80 and 443, copy backups off the server, and update regularly with `scripts/update.sh`. Run `npm audit` regularly: the first CI audit reported advisories against the versions pinned when this project was written, and they had to be bumped. Keep dependencies updated and rebuild the image after every update.

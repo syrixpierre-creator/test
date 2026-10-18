@@ -2,6 +2,14 @@
 
 ## 0.1.0 (unreleased)
 
+### Fixed after the first GitHub Actions run
+
+- ShellCheck SC2034: `ASSUME_YES` is exported in `update.sh`, `restore.sh` and `uninstall.sh`.
+- Security: bumped express to 4.22.3, multer to 2.4.0 and sharp to 0.35.5 after `npm audit` reported high and moderate advisories against the first pinned versions. Compatibility with these versions has not been tested here.
+- CI: the Android job no longer uses `android-actions/setup-android` (it failed on the runner) and uses the preinstalled SDK instead.
+- Tests no longer assume root, fixed sleeps or preserved executable bits, and `npm test` prints a failure summary. Three failing tests from that run remain unidentified.
+- The installer no longer aborts if `hostname -I` fails.
+
 First version. Everything below is implemented and covered by automated tests, except where marked.
 
 ### Added
@@ -17,7 +25,7 @@ First version. Everything below is implemented and covered by automated tests, e
 ### Not verified
 
 - No real Gradle build, no real APK, no installation on a device.
-- No Docker image build, no run of the installer on a real server, no deployment to any platform, no GitHub Actions run.
+- No Docker image build, no run of the installer on a real server, no deployment to any platform, no passing GitHub Actions run.
 - Express, Multer, Zod, Pino and express-rate-limit code was never executed.
 
 ### Not implemented

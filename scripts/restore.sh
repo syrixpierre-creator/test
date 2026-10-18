@@ -11,7 +11,7 @@ RESTORE_ENV=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --yes) ASSUME_YES=1; shift ;;
+    --yes) export ASSUME_YES=1; shift ;;
     --restore-env) RESTORE_ENV=1; shift ;;
     --help|-h) info "Usage: sudo bash restore.sh <backup.tar.gz> [--yes] [--restore-env]"; exit 0 ;;
     -*) fail "Unknown option: $1" ;;

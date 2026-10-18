@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { test } from 'node:test';
 import { buildGradleCommandArguments, buildGradleEnvironment, runGradle } from '../backend/src/build/gradleRunner.js';
-import { makeTemporaryDirectory, makeTestConfig, writeExecutable } from './helpers/fixtures.js';
+import { makeTemporaryDirectory, makeTestConfig, waitFor, writeExecutable } from './helpers/fixtures.js';
 
 const run = async (body, options = {}) => {
   const directory = await makeTemporaryDirectory('runner-');
@@ -46,7 +46,7 @@ test('only the supplied environment is visible to the process', async () => {
 test('aborting terminates the whole process group', async () => {
   const controller = new AbortController();
   const { promise, lines } = await run('echo started\nsleep 30 &\nwait', { controller });
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  await waitFor(() => lines.includes('started'));
   const started = Date.now();
   controller.abort(new DOMException('Build cancelled', 'AbortError'));
   await assert.rejects(promise, (error) => error.name === 'AbortError');
@@ -56,8 +56,8 @@ test('aborting terminates the whole process group', async () => {
 
 test('processes that ignore termination are killed after the grace period', async () => {
   const controller = new AbortController();
-  const { promise } = await run("trap '' TERM\nwhile true; do sleep 1; done", { controller, killGraceMs: 300 });
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  const { promise, lines } = await run("trap '' TERM\necho ready\nwhile true; do sleep 1; done", { controller, killGraceMs: 300 });
+  await waitFor(() => lines.includes('ready'));
   const started = Date.now();
   controller.abort(new DOMException('Build timed out', 'TimeoutError'));
   await assert.rejects(promise, (error) => error.name === 'TimeoutError');
