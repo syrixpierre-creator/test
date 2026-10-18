@@ -10,6 +10,7 @@ export function buildGradleEnvironment(config, parentEnvironment = process.env) 
   }
   environment.HOME = config.buildHomeDirectory;
   environment.GRADLE_USER_HOME = config.gradleUserHome;
+  environment.GRADLE_OPTS = config.gradleJvmArgs;
   environment.ANDROID_USER_HOME = `${config.buildHomeDirectory}/.android`;
   if (config.androidHome) {
     environment.ANDROID_HOME = config.androidHome;
@@ -19,13 +20,7 @@ export function buildGradleEnvironment(config, parentEnvironment = process.env) 
 }
 
 export function buildGradleCommandArguments(config, projectArguments) {
-  return [
-    '--no-daemon',
-    '--console=plain',
-    `-Dorg.gradle.jvmargs=${config.gradleJvmArgs}`,
-    'assembleDebug',
-    ...projectArguments
-  ];
+  return ['--no-daemon', '--console=plain', 'assembleDebug', ...projectArguments];
 }
 
 function createLineReader(onLine) {

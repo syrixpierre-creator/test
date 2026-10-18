@@ -251,3 +251,28 @@ test('concurrent builds are isolated in separate workspaces', async () => {
   for (const build of builds) assert.equal(database.getBuild(build.id).state, 'completed');
   assert.deepEqual(await fs.readdir(config.workspaceDirectory), []);
 });
+
+test('runner keeps the log readable when the hosting platform probes a local Gradle port', async () => {
+  const { service, runner, database, root } = await createPipeline();
+  const apk = path.join(root, 'prebuilt.apk');
+  await fs.writeFile(apk, fakeApk());
+  const noise = Array.from({ length: 200 }, () => [
+    'echo "Unable to receive command from client socket connection from /127.0.0.1:1 to /127.0.0.1:2. Discarding connection."',
+    'echo "org.gradle.internal.remote.internal.MessageIOException: Could not read message from x."',
+    'printf "\\tat org.gradle.internal.remote.internal.inet.SocketConnection.receive(SocketConnection.java:99)\\n"',
+    'echo "Caused by: java.lang.IllegalArgumentException: Unexpected type tag 72 found."'
+  ].join('\n')).join('\n');
+  await writeExecutable(
+    path.join(root, 'fake-gradle.sh'),
+    `echo "> Task :app:preBuild"\n${noise}\necho "> Task :app:assembleDebug"\nmkdir -p app/build/outputs/apk/debug\ncp ${apk} app/build/outputs/apk/debug/app-debug.apk`
+  );
+  const build = await service.submit({ ownerHash: owner, rawConfig: validConfig(), source: sampleHtml(), icon: null });
+  await runner(build.id, new AbortController().signal);
+  assert.equal(database.getBuild(build.id).state, 'completed');
+  const lines = database.getLogs(build.id, 0, 5000).map((log) => log.line);
+  assert.ok(lines.length < 25, `log has ${lines.length} lines`);
+  assert.ok(lines.includes('> Task :app:preBuild'));
+  assert.ok(lines.includes('> Task :app:assembleDebug'));
+  assert.ok(lines.some((line) => line.startsWith('Ignored 200 unexpected connection')));
+  assert.ok(!lines.some((line) => line.includes('Unexpected type tag')));
+});

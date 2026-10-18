@@ -46,7 +46,7 @@ With `NODE_ENV=production`, `PUBLIC_BASE_URL` is required and must start with `h
 | `GRADLE_COMMAND` | `gradle` | Gradle executable. |
 | `GRADLE_USER_HOME` | `./data/gradle-home` | Gradle cache, kept between builds. |
 | `BUILD_HOME_DIR` | `./data/build-home` | Home directory given to Gradle. |
-| `GRADLE_JVM_ARGS` | `-Xmx1536m` | JVM arguments for Gradle. Only letters, digits and `-=:.` and spaces are accepted. |
+| `GRADLE_JVM_ARGS` | `-Xmx2g` | JVM arguments for Gradle, passed as `GRADLE_OPTS`. Builds run in the Gradle client process (no forked daemon), so this is also the heap used by the Kotlin compiler. Only letters, digits and `-=:.` and spaces are accepted. |
 | `WORKER_CONCURRENCY` | `1` | Builds running at the same time. Plan about 4 GB of memory per concurrent build. |
 | `QUEUE_LIMIT` | `20` | Builds allowed to wait. A full queue answers `queue_full`. |
 | `BUILD_TIMEOUT_SECONDS` | `900` | A build that runs longer is killed and marked failed. |

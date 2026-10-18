@@ -2,6 +2,12 @@
 
 ## 0.1.0 (unreleased)
 
+### Fixed after the first Render deployment
+
+- Gradle no longer forks a single-use daemon (JVM settings moved to `GRADLE_OPTS`, `org.gradle.jvmargs` and `file.encoding` removed from the template, Kotlin compiles in-process). This removes the local port that produced thousands of "Unexpected type tag 72" stack traces on Render and filled the build log.
+- Any remaining occurrences of that message are collapsed into one notice and a final count.
+- `GRADLE_JVM_ARGS` now defaults to `-Xmx2g` because the build and the Kotlin compiler share one JVM. Untested on a real build.
+
 ### Fixed after the first GitHub Actions run
 
 - ShellCheck SC2034: `ASSUME_YES` is exported in `update.sh`, `restore.sh` and `uninstall.sh`.

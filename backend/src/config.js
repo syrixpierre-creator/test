@@ -37,7 +37,7 @@ export function loadConfig(env = process.env) {
       throw new Error(`Invalid origin in ALLOWED_ORIGINS: ${origin}`);
     }
   }
-  const gradleJvmArgs = env.GRADLE_JVM_ARGS ?? '-Xmx1536m';
+  const gradleJvmArgs = env.GRADLE_JVM_ARGS ?? '-Xmx2g';
   if (!/^[-A-Za-z0-9=:.\s]+$/.test(gradleJvmArgs)) {
     throw new Error('GRADLE_JVM_ARGS contains unsupported characters.');
   }

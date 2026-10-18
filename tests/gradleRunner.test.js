@@ -83,13 +83,15 @@ test('a missing executable is reported without internal details', async () => {
 test('the build environment excludes application secrets', async () => {
   const { config } = await makeTestConfig();
   const environment = buildGradleEnvironment(config, { PATH: '/usr/bin', JAVA_HOME: '/jdk', API_KEY: 'secret', DATABASE_FILE: '/x', AWS_SECRET_ACCESS_KEY: 'y' });
-  assert.deepEqual(Object.keys(environment).sort(), ['ANDROID_HOME', 'ANDROID_SDK_ROOT', 'ANDROID_USER_HOME', 'GRADLE_USER_HOME', 'HOME', 'JAVA_HOME', 'PATH']);
+  assert.deepEqual(Object.keys(environment).sort(), ['ANDROID_HOME', 'ANDROID_SDK_ROOT', 'ANDROID_USER_HOME', 'GRADLE_OPTS', 'GRADLE_USER_HOME', 'HOME', 'JAVA_HOME', 'PATH']);
   assert.equal(environment.ANDROID_HOME, config.androidHome);
+  assert.equal(environment.GRADLE_OPTS, '-Xmx2g');
 });
 
 test('gradle arguments are controlled and include project properties', async () => {
   const { config } = await makeTestConfig();
   const args = buildGradleCommandArguments(config, ['-Pinconnu.versionCode=2']);
-  assert.deepEqual(args.slice(0, 4), ['--no-daemon', '--console=plain', '-Dorg.gradle.jvmargs=-Xmx1536m', 'assembleDebug']);
+  assert.deepEqual(args.slice(0, 3), ['--no-daemon', '--console=plain', 'assembleDebug']);
+  assert.ok(!args.some((argument) => argument.includes('org.gradle.jvmargs')));
   assert.equal(args.at(-1), '-Pinconnu.versionCode=2');
 });

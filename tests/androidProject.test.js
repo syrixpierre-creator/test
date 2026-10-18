@@ -126,3 +126,12 @@ test('every project property read by the Gradle script is supplied', async () =>
   assert.ok(required.length >= 7);
   for (const name of new Set(required)) assert.ok(supplied.includes(name), `${name} not supplied`);
 });
+
+test('the template keeps Gradle in one process so no daemon port is opened', async () => {
+  const { projectDirectory } = await generate({});
+  const properties = await read(projectDirectory, 'gradle.properties');
+  assert.doesNotMatch(properties, /org\.gradle\.jvmargs/);
+  assert.doesNotMatch(properties, /file\.encoding/);
+  assert.match(properties, /^kotlin\.compiler\.execution\.strategy=in-process$/m);
+  assert.match(properties, /^org\.gradle\.vfs\.watch=false$/m);
+});

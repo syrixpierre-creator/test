@@ -220,6 +220,9 @@ The script backs up first, preserves `.env`, metadata and artifacts, rebuilds, c
 | Browser blocks API calls from a separate frontend | Add the frontend origin to `ALLOWED_ORIGINS` and use an https API address. |
 | Rate limited for everyone at once | Set `TRUST_PROXY=true` behind a reverse proxy. |
 | Live log stops behind a proxy | Disable response buffering for `/api/builds/*/events`. |
+| The build log fills with `Unable to receive command from client socket connection` and `Unexpected type tag 72` | Something on the host (very likely the platform's port scanner) sends HTTP to a local port opened by a forked Gradle daemon. Earlier versions forked one because of their JVM settings. This version runs Gradle in one process and collapses any remaining noise into a single line. The messages were harmless but hid real output. |
+| The first build stays in "Compiling" for many minutes | The first build downloads Gradle, the Android Gradle Plugin and AndroidX. Later builds reuse the cache in `GRADLE_USER_HOME`, which only persists with a disk mounted at `/data`. |
+| The build disappears or fails with "interrupted by a server restart" | The container was killed, most often for lack of memory. Use an instance with at least 4 GB. |
 | Diagnose an installation | `sudo bash /opt/inconnu-boy-apk-builder/scripts/doctor.sh` |
 
 ## Known limitations
@@ -246,6 +249,10 @@ The script backs up first, preserves `.env`, metadata and artifacts, rebuilds, c
 ### First GitHub Actions run (reported by a user, not reproduced here)
 
 A first run on an unrelated GitHub account showed: 188 of 191 unit tests passing (the three failing test names were not in the excerpt), ShellCheck warning SC2034 on `ASSUME_YES` in three scripts, `npm audit` advisories against the first pinned versions of express, multer and sharp, and a failure inside the `android-actions/setup-android` step before any project code ran. Afterwards: `ASSUME_YES` is exported, express, multer and sharp were bumped to 4.22.3, 2.4.0 and 0.35.5 (the versions `npm audit` named as fixes), the Android job uses the SDK already installed on the runner, and tests that depended on running as root or on fixed sleeps were made independent of both. The suite also passes when run as a non-root user here. **None of these fixes has been run on GitHub, and the three original failures are not identified**, so treat the corrected workflow as unverified. The new dependency versions were not installed or tested here: the local tests ran against sharp 0.34.5.
+
+### First deployment reported by a user
+
+One user deployed the project on Render and sent a screenshot of a build in the "Compiling" stage with Gradle output in the live log. That shows the image built with its toolchain, the interface and API were served, the queue started a build and Gradle ran. The result of that build is not known. The log was flooded by the daemon-port messages described under Troubleshooting; this version addresses that, untested on Render.
 
 ### What was not verified
 

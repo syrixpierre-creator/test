@@ -8,6 +8,7 @@ import { AppError } from '../errors.js';
 import { generateIconResources } from '../icons/iconGenerator.js';
 import { resolveInside } from '../security/paths.js';
 import { toPublicBuild } from '../serializers.js';
+import { createLogFilter } from './logFilter.js';
 import { buildGradleCommandArguments, buildGradleEnvironment, runGradle } from './gradleRunner.js';
 
 const MAXIMUM_LOG_LINES = 5000;
@@ -36,6 +37,8 @@ export function createBuildRunner({ config, database, events, logger, gradle = r
       const seq = database.appendLog(id, text);
       events.publish(id, { type: 'log', seq, data: { line: text, at: new Date().toISOString() } });
     };
+
+    const logFilter = createLogFilter(log);
 
     const advance = (state, options) => {
       const updated = database.transition(id, state, options);
@@ -82,8 +85,9 @@ export function createBuildRunner({ config, database, events, logger, gradle = r
         cwd: projectDirectory,
         env: buildGradleEnvironment(config),
         signal,
-        onLine: log
+        onLine: logFilter.push
       });
+      if (logFilter.ignoredCount() > 0) log(`Ignored ${logFilter.ignoredCount()} unexpected connection(s) to a local Gradle port.`);
       if (result.code !== 0) {
         throw new AppError(500, 'gradle_failed', `The Gradle build failed with exit code ${result.code}. Review the build log.`);
       }

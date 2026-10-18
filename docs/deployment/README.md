@@ -26,7 +26,7 @@ Storage is the local filesystem under `/data` (SQLite metadata, APKs, Gradle cac
 | Linux VPS (Ubuntu 20.04, 22.04, 24.04, Debian 11, 12) | `install.sh`, `scripts/` | Scripts exercised against a stubbed Docker in automated tests. Never run against a real Docker daemon or a real VPS. |
 | Docker Compose | `docker-compose.yml`, `Dockerfile`, `Caddyfile` | YAML structure checked. Image never built here. |
 | Railway | `railway.json` | Syntax only. |
-| Render | `render.yaml` | YAML structure only. |
+| Render | `render.yaml` | YAML structure checked. One user reported a deployment whose build reached the Gradle stage; completion not confirmed. |
 | Fly.io | `fly.toml` | TOML structure only. |
 | Vercel, Netlify (frontend only) | `vercel.json`, `netlify.toml` | Config writer script tested. Never deployed. |
 | DigitalOcean, Hetzner, Oracle Cloud, AWS, Google Cloud, Azure | Guides in this folder | Not tested. They reuse the VPS installer on an x86_64 virtual machine. |
